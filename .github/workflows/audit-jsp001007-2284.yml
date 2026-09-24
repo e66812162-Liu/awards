@@ -1,0 +1,45 @@
+name: Audit JSP-001007 competitor PR 2284
+
+on:
+  push:
+    branches:
+      - audit-jsp001007-2284
+  workflow_dispatch:
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout audit branch
+        uses: actions/checkout@v4
+
+      - name: Install elan
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Clone exact competitor source
+        run: |
+          git clone https://github.com/tester-lean/awards.git competitor
+          cd competitor
+          git checkout --detach f26433803cfbd924569aebbdcc1c39321ecb9971
+          test "$(git rev-parse HEAD)" = "f26433803cfbd924569aebbdcc1c39321ecb9971"
+
+      - name: Reproduce Lean build and axiom audit
+        working-directory: competitor/submissions/jsp-001007
+        run: |
+          chmod +x verify.sh
+          ./verify.sh
+
+      - name: Record exact theorem types
+        working-directory: competitor/submissions/jsp-001007
+        run: |
+          cat > DeathAudit.lean <<'EOF'
+          import Jsp.Jsp001007Conclusion
+          #check JSP001007.green44_counterexample
+          #check JSP001007.not_green44_conjecture
+          #print JSP001007.Green44Conjecture
+          #print JSP001007.AdmissibleConfig
+          #print axioms JSP001007.not_green44_conjecture
+          EOF
+          lake env lean DeathAudit.lean
